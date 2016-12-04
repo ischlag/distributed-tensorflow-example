@@ -1,4 +1,4 @@
-# Distributed Tensorflow Example 
+# Distributed Tensorflow 0.8.0 Example 
 
 Using data parallelism with shared model parameters while updating parameters asynchronous. See comment for some changes to make the parameter updates synchronous (not sure if the synchronous part is implemented correctly though).
 
