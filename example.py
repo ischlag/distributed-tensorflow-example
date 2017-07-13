@@ -1,5 +1,5 @@
 '''
-Distributed Tensorflow 0.8.0 example of using data parallelism and share model parameters.
+Distributed Tensorflow 1.2.0 example of using data parallelism and share model parameters.
 Trains a simple sigmoid neural network on mnist for 20 epochs on three machines using one parameter server. 
 
 Change the hardcoded host urls below with your own hosts. 
@@ -32,9 +32,10 @@ tf.app.flags.DEFINE_integer("task_index", 0, "Index of task within the job")
 FLAGS = tf.app.flags.FLAGS
 
 # start a server for a specific task
-server = tf.train.Server(cluster, 
-													job_name=FLAGS.job_name,
-													task_index=FLAGS.task_index)
+server = tf.train.Server(
+    cluster,
+    job_name=FLAGS.job_name,
+    task_index=FLAGS.task_index)
 
 # config
 batch_size = 100
@@ -47,7 +48,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 if FLAGS.job_name == "ps":
-  server.join()
+    server.join()
 elif FLAGS.job_name == "worker":
 
 	# Between-graph replication
@@ -56,9 +57,11 @@ elif FLAGS.job_name == "worker":
 		cluster=cluster)):
 
 		# count the number of updates
-		global_step = tf.get_variable('global_step', [], 
-																initializer = tf.constant_initializer(0), 
-																trainable = False)
+		global_step = tf.get_variable(
+            'global_step',
+            [],
+            initializer = tf.constant_initializer(0),
+			trainable = False)
 
 		# input images
 		with tf.name_scope('input'):
@@ -89,19 +92,20 @@ elif FLAGS.job_name == "worker":
 		# specify cost function
 		with tf.name_scope('cross_entropy'):
 			# this is our cost
-			cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y), reduction_indices=[1]))
+			cross_entropy = tf.reduce_mean(
+                -tf.reduce_sum(y_ * tf.log(y), reduction_indices=[1]))
 
 		# specify optimizer
 		with tf.name_scope('train'):
 			# optimizer is an "operation" which we can execute in a session
 			grad_op = tf.train.GradientDescentOptimizer(learning_rate)
 			'''
-			rep_op = tf.train.SyncReplicasOptimizer(grad_op, 
-																					replicas_to_aggregate=len(workers),
- 																					replica_id=FLAGS.task_index, 
- 																					total_num_replicas=len(workers),
- 																					use_locking=True
- 																					)
+			rep_op = tf.train.SyncReplicasOptimizer(
+                grad_op,
+			    replicas_to_aggregate=len(workers),
+ 				replica_id=FLAGS.task_index, 
+ 			    total_num_replicas=len(workers),
+ 				use_locking=True)
  			train_op = rep_op.minimize(cross_entropy, global_step=global_step)
  			'''
 			train_op = grad_op.minimize(cross_entropy, global_step=global_step)
@@ -117,12 +121,12 @@ elif FLAGS.job_name == "worker":
 			accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 		# create a summary for our cost and accuracy
-		tf.scalar_summary("cost", cross_entropy)
-		tf.scalar_summary("accuracy", accuracy)
+		tf.summary.scalar("cost", cross_entropy)
+		tf.summary.scalar("accuracy", accuracy)
 
 		# merge all summaries into a single "operation" which we can execute in a session 
-		summary_op = tf.merge_all_summaries()
-		init_op = tf.initialize_all_variables()
+		summary_op = tf.summary.merge_all()
+		init_op = tf.global_variables_initializer()
 		print("Variables initialized ...")
 
 	sv = tf.train.Supervisor(is_chief=(FLAGS.task_index == 0),
@@ -139,7 +143,7 @@ elif FLAGS.job_name == "worker":
 			sess.run(init_token_op)
 		'''
 		# create log writer object (this will log on every machine)
-		writer = tf.train.SummaryWriter(logs_path, graph=tf.get_default_graph())
+		writer = tf.summary.FileWriter(logs_path, graph=tf.get_default_graph())
 				
 		# perform training cycles
 		start_time = time.time()
