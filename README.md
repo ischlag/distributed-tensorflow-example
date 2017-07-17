@@ -16,3 +16,5 @@ pc-04$ python example.py --job_name="worker" --task_index=2
 ```
 
 More details here: [ischlag.github.io](http://ischlag.github.io/)
+
+Thanks to snowsquizy for updating the script to TensorFlow 1.2!
