@@ -55,25 +55,14 @@ server = tf.train.Server(
     job_name=args.job_name,
     task_index=args.task_index)
 
-# load mnist data set
-from tensorflow.examples.tutorials.mnist import input_data
-mnist = input_data.read_data_sets(args.data_path, one_hot=True)
-
-def dense(input_tensor, output_dim, activation=None, name="dense"):
-    input_dim = int(input_tensor.get_shape()[1])
-    with tf.variable_scope(name):
-        W = tf.Variable(tf.random_normal((input_dim, output_dim)), dtype=tf.float32, name='W')
-        b = tf.Variable(tf.random_normal((output_dim,)), dtype=tf.float32, name='b')
-        output = tf.add(tf.matmul(input_tensor, W), b)
-        if activation is not None:
-            output = activation(output)
-    return output
-
-
 if 'ps' == args.job_name:
     print("Starting server..  This process will run forever.")
     server.join()
 elif 'worker' == args.job_name:
+    # load mnist data set
+    from tensorflow.examples.tutorials.mnist import input_data
+    mnist = input_data.read_data_sets(args.data_path, one_hot=True)
+
     # Between-graph replication
     with tf.device(tf.train.replica_device_setter(
             worker_device = "/job:worker/task:%d" % args.task_index,
@@ -95,6 +84,17 @@ elif 'worker' == args.job_name:
             # target 10 output classes
             input_target = tf.placeholder(tf.float32, shape=(None, 10), name="target")
 
+        def dense(input_tensor, output_dim, activation=None, name="dense"):
+            """Dense neural-network layer with output-dim dimensions."""
+            input_dim = int(input_tensor.get_shape()[1])
+            with tf.variable_scope(name):
+                W = tf.Variable(tf.random_normal((input_dim, output_dim)), dtype=tf.float32, name='W')
+                b = tf.Variable(tf.random_normal((output_dim,)), dtype=tf.float32, name='b')
+                output = tf.add(tf.matmul(input_tensor, W), b)
+                if activation is not None:
+                    output = activation(output)
+            return output
+
         tf.set_random_seed(1)
         x = dense(input_features, output_dim=100, activation=tf.nn.sigmoid, name="Dense_1")
         y = dense(x, output_dim=10, activation=tf.nn.softmax, name="Dense_2")
@@ -112,12 +112,13 @@ elif 'worker' == args.job_name:
             '''
             rep_op = tf.train.SyncReplicasOptimizer(
                 grad_op,
-                replicas_to_aggregate=len(workers),
-                 replica_id=args.task_index, 
-                 total_num_replicas=len(workers),
-                 use_locking=True)
-             train_op = rep_op.minimize(cross_entropy, global_step=global_step)
-             '''
+                replicas_to_aggregate = len(workers),
+                replica_id = args.task_index, 
+                total_num_replicas = len(workers),
+                use_locking = True
+            )
+            train_op = rep_op.minimize(cross_entropy, global_step=global_step)
+            '''
             train_op = grad_op.minimize(cross_entropy, global_step=global_step)
             
         '''
@@ -184,17 +185,17 @@ elif 'worker' == args.job_name:
                     elapsed_time = time.time() - start_time
                     start_time = time.time()
                     print("Step: %d," % (step+1), 
-                                " Epoch: %2d," % (epoch+1), 
-                                " Batch: %3d of %3d," % (i+1, batch_count), 
-                                " Cost: %.4f," % cost, 
-                                " AvgTime: %3.2fms" % float(elapsed_time*1000/frequency))
+                          "  Epoch: %2d," % (epoch+1), 
+                          "  Batch: %3d of %3d," % (i+1, batch_count), 
+                          "  Cost: %.4f," % cost, 
+                          "  AvgTime: %3.2fms" % float(elapsed_time*1000/frequency))
                     count = 0
 
-
-        print("Test-Accuracy: %2.2f" % S.run(accuracy, feed_dict={input_features:
-            mnist.test.images, input_target: mnist.test.labels}))
-        print("Total Time: %3.2fs" % float(time.time() - begin_time))
-        print("Final Cost: %.4f" % cost)
+        acc = S.run(accuracy, feed_dict={input_features:
+            mnist.test.images, input_target: mnist.test.labels})
+        print(f"Test-Accuracy: {acc}")
+        print(f"Total Time: {time.time()-begin_time} sec.")
+        print(f"Final Cost: {cost}")
 
     sv.stop()
     print("done")
