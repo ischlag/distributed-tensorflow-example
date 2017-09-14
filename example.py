@@ -26,6 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--port', type=int, default=2222)
 parser.add_argument('--logdir', type=str, default='/tmp/mnist')
 parser.add_argument('--ps-host', type=str, default='localhost')
+parser.add_argument('--proceed', action='store_true')
 parser.add_argument('--job-name', choices=['ps', 'worker'], default='ps')
 parser.add_argument('--data-path', type=str, default=default_data_path)
 parser.add_argument('--task-index', type=int, default=0)
@@ -69,14 +70,6 @@ elif 'worker' == args.job_name:
             cluster = cluster_spec
         )):
 
-        # count the number of updates
-        global_step = tf.get_variable(
-            'global_step',
-            [],
-            initializer = tf.constant_initializer(0),
-            trainable = False
-        )
-
         # input images
         with tf.name_scope('input'):
             # None -> batch size can be any size, 784 -> flattened mnist image
@@ -97,16 +90,26 @@ elif 'worker' == args.job_name:
 
         tf.set_random_seed(1)
         x = dense(input_features, output_dim=100, activation=tf.nn.sigmoid, name="Dense_1")
-        y = dense(x, output_dim=10, activation=tf.nn.softmax, name="Dense_2")
+        logits = dense(x, output_dim=10, name="Dense_2")
+        y = tf.nn.softmax(logits)
 
         # specify cost function
         with tf.name_scope('cross_entropy'):
-            # this is our cost
-            cross_entropy = tf.reduce_mean(
-                -tf.reduce_sum(input_target * tf.log(y), reduction_indices=[1]))
+            xent = tf.nn.softmax_cross_entropy_with_logits
+            cross_entropy = tf.reduce_mean(xent(labels=input_target, logits=logits))
+            # cross_entropy = tf.reduce_mean(
+            #     -tf.reduce_sum(input_target * tf.log(y), reduction_indices=[1]))
 
         # specify optimizer
         with tf.name_scope('train'):
+            # count the number of updates
+            global_step = tf.get_variable(
+                'global_step',
+                [],
+                initializer = tf.constant_initializer(0),
+                trainable = False
+            )
+
             # optimizer is an "operation" which we can execute in a session
             grad_op = tf.train.GradientDescentOptimizer(args.learning_rate)
             '''
@@ -138,7 +141,8 @@ elif 'worker' == args.job_name:
 
         # merge all summaries into a single "operation" which we can execute in a session 
         summary_op = tf.summary.merge_all()
-        init_op = tf.global_variables_initializer()
+        # .. proceed with training
+        init_op = None if args.proceed else tf.global_variables_initializer()
         print("Variables initialized ...")
 
     sv = tf.train.Supervisor(
