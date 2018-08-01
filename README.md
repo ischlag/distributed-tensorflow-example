@@ -1,4 +1,4 @@
-# Distributed Tensorflow 1.2 Example 
+# Distributed Tensorflow 1.2 Example (DEPRECATED)
 
 Using data parallelism with shared model parameters while updating parameters asynchronous. See comment for some changes to make the parameter updates synchronous (not sure if the synchronous part is implemented correctly though).
 
@@ -15,6 +15,4 @@ pc-03$ python example.py --job_name="worker" --task_index=1
 pc-04$ python example.py --job_name="worker" --task_index=2 
 ```
 
-More details here: [ischlag.github.io](http://ischlag.github.io/)
-
-Thanks to snowsquizy for updating the script to TensorFlow 1.2!
+Thanks to snowsquizy for updating the script to TensorFlow 1.2.
